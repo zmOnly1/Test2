@@ -1,0 +1,59 @@
+curl  -X PUT -d '{"Name": "dbservice"}' http://localhost:8500/v1/session/create
+bdde0d99-9866-e2c7-68a0-b25c0f040bba
+
+curl  -X PUT -d '{"Name": "redisservice"}' http://localhost:8500/v1/session/create
+15e643d8-a7cd-3a48-10af-96156fbdf779
+
+curl -X PUT -d '{"a":"b"}' http://localhost:8500/v1/kv/lead?acquire=bdde0d99-9866-e2c7-68a0-b25c0f040bba
+
+key bind session
+curl -X PUT -d '{"a":"change"}' http://localhost:8500/v1/kv/lead?acquire=15e643d8-a7cd-3a48-10af-96156fbdf779
+
+release key
+curl -X PUT http://localhost:8500/v1/kv/lead?release=bdde0d99-9866-e2c7-68a0-b25c0f040bba
+
+read key
+curl http://localhost:8500/v1/kv/lead
+
+
+create session
+/session/create
+
+read session
+/session/info/:uuid
+
+list seesion 
+curl http://localhost:8500/v1/session/list
+curl http://localhost:8500/v1/agent/checks
+
+renew
+/session/renew/:uuid
+
+1.key只能抢锁api update
+2.key过期，与应用健康检查绑定
+3.leader短暂失败，或很快关闭重启，能找回本session
+4.lockdelay,延迟抢锁
+5.leader， renew再次抢锁有优先权
+
+
+curl  -X PUT -d '{
+    "Name": "test1",
+	"LockDelay": "60s",
+    "Behavior": "release",
+    "Checks": ["service:springDemo-8080"]
+}' http://localhost:8500/v1/session/create
+
+73935f6d-2177-684b-fa69-24a92ec7bb04
+
+1d1b426a-c7fa-a984-c052-ddc39f812bf7
+
+
+curl -X PUT -d '{"a":"b"}' http://localhost:8500/v1/kv/test2?acquire=73935f6d-2177-684b-fa69-24a92ec7bb04
+
+curl -X PUT http://localhost:8500/v1/kv/test2?release=0d3d7f74-e729-5e12-05cb-4f1609614a95
+
+curl -X PUT http://localhost:8500/v1/session/destroy/73935f6d-2177-684b-fa69-24a92ec7bb04
+
+curl -X PUT -d '{"a":"b"}' http://localhost:8500/v1/kv/test2?acquire=1d1b426a-c7fa-a984-c052-ddc39f812bf7
+
+

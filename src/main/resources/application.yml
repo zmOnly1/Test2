@@ -1,0 +1,14 @@
+server:
+  port: 8080
+spring:
+  application:
+    name: springDemo
+  cloud:
+    consul:
+      host: 127.0.0.1
+      port: 8500
+      discovery:
+        tags: version=1.0,author=yjmyzz
+        healthCheckPath: /health
+        healthCheckInterval: 5s
+        instanceId: ${spring.application.name}:${server.port}

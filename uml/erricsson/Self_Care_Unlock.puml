@@ -1,0 +1,70 @@
+@startuml
+title Self_Care User Unlock Account
+
+box "CSR User" #LightBlue
+Actor "CSR User" as csr
+end box
+
+box "CSR Toolbox" #AliceBlue
+participant "Application" as a
+end box
+
+box "ECE IAM Server" #Azure
+participant "Identity Management" as idm
+participant "IAM Profile Service" as iamProfile
+end box
+
+autonumber
+
+csr -> a: login and check lock status by MSISDN
+
+== check lock status ==
+a -> idm: checkLockStatus(MSISDN)
+idm -> iamProfile: queryUserProfileByIdentifier(MSISDN)
+iamProfile --> idm
+idm -> idm: getLockedCounters()
+
+alt success
+idm --> a: 200, OK
+a --> csr: display lock information page
+else exception
+idm --> a: 404, not found
+idm --> a: 400, Bad Request
+idm --> a: 5xx, internal server error
+a --> csr: Display error message
+end
+
+== unlock manual lock ==
+csr -> a: unlock manual lock
+a -> idm: unlockManualLock(userId)
+
+idm -> iamProfile: updateUserInfoStatus(userId, userInfo)
+iamProfile --> idm
+
+alt success
+idm --> a: 204, no content
+a --> csr: Prompt user unlock is successful.
+else exception
+idm --> a: 404, not found
+idm --> a: 400, Bad Request
+idm --> a: 5xx, internal server error
+a --> csr: Display error message
+end
+
+== unlock counter lock ==
+csr -> a: unlock counter lock
+a -> idm: unlockCounterLock(userId, counterNames)
+idm -> idm: resetCounter()
+idm -> iamProfile: reset(userId, counterName)
+iamProfile --> idm
+
+alt success
+idm --> a: 204, no content
+a --> csr: Prompt user unlock is successful.
+else exception
+idm --> a: 404, not found
+idm --> a: 400, Bad Request
+idm --> a: 5xx, internal server error
+a --> csr: Display error message
+end
+@enduml

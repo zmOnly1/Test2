@@ -1,0 +1,23 @@
+@startuml
+title __Simple__ **communication** example
+autonumber 1 1
+用户 -> 认证中心: 登录操作
+认证中心 -> 缓存: 存放(key=token+ip,value=token)token
+
+newpage A title for the last page
+
+== Step1 ==
+用户 <- 认证中心 : 认证成功返回token
+用户 -> 认证中心: 下次访问头部携带token认证
+
+== Step2 ==
+
+认证中心 <- 缓存: key=token+ip获取token
+...
+|||
+||50||
+认证中心 -> 其他服务: 存在且校验成功则跳转到用户请求的其他服务
+...5 minutes latter...
+用户 <- 其他服务: 信息
+@enduml
+

@@ -1,0 +1,99 @@
+@startuml
+title Self_Care User Unlock Counter Lock
+
+box "CSR User" #LightBlue
+Actor "CSR User" as csr
+end box
+
+box "CSR Toolbox" #AliceBlue
+participant "Application" as a
+end box
+
+box "Identity Manangement" #Azure
+participant "UserProfileService" as ups
+participant "UserProfileManager" as upm
+participant "IAMProfileHandler" as iamProfile
+participant "SecurityCounterHandler" as schandler
+participant "SecurityCounterDao" as SecurityCounterDao
+end box
+
+box "Profile Service" #TECHNOLOGY
+participant "UserInfoService" as uisvc
+end box
+
+box "Redis" #PeachPuff
+participant "Redis" as redis
+end box
+
+autonumber
+
+csr -> a: unlock counter lock
+a -> ups: unlockCounterLock(userId, counterNames)
+note left ups
+	POST /idm/provisioning/v1/userprofile/rpc/unlockCounterLock
+	Content-Type: application/json
+	Realm: Self_Care
+	Authorization: Bearer 1234567890abcdefg
+	{
+		"uid": "uuid....",
+		"counterNames": ["LoginCount","PasswordResetFailureCount"]
+	}
+end note
+
+ups -> ups: putRealmIntoThreadLocal()
+ups -> ups: validateRequestParameterIsRequired(userId)
+ups -> ups: validateRequestParameterIsRequired(counterNames)
+ups -> upm: unlockCounterLock(userId, counterNames)
+upm -> iamProfile: userInfo = queryUserInfoByUserId(userId)
+iamProfile --> upm
+upm -> schandler: resetCounter(userInfo, counterNames)
+schandler -> SecurityCounterDao: reset(userId, counterName)
+SecurityCounterDao -> redis
+schandler -> uisvc: update(userId, userInfo)
+schandler --> upm
+upm --> ups
+
+alt success
+ups --> a: 204, no content
+note right a
+	Status: 204 No Content
+	Content-Type: application/json
+end note
+a --> csr: Prompt user unlock is successful.
+
+else invalid parameter
+ups --> a: 400, Bad Request
+note right a
+	Status: 400 Bad Request
+	Content-Type: application/json
+	{
+		"error": "invalid_request",
+		"error_description": "Invalid value of parameter: uid."
+	}
+end note
+
+else user not found
+ups --> a: 404, not found
+note right a
+	Status: 404 Not Found
+	Content-Type: application/json
+	{
+		"error": "user_not_found",
+		"error_description": "The provided user_id is not found."
+	}
+end note
+a --> csr: The provided user_id is not found.
+
+else server error
+ups --> a: 5xx, internal server error
+note right a
+	Status: 5xx
+	Content-Type: application/json
+	{
+		"error": "internal_server_error",
+		"error_description": "server error."
+	}
+end note
+a --> csr: Display error message
+end
+@enduml

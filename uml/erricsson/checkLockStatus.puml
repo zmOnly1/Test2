@@ -1,0 +1,107 @@
+@startuml
+title Check Lock Status
+
+box "CSR User" #LightBlue
+Actor "CSR User" as csr
+end box
+
+box "CSR Toolbox" #AliceBlue
+participant "Application" as a
+end box
+
+box "Identity Manangement" #Azure
+participant "UserProfileService" as ups
+participant "UserProfileManager" as upm
+participant "IAMProfileHandler" as iamProfile
+participant "SecurityCounterHandler" as schandler
+end box
+
+box "Profile Service" #TECHNOLOGY
+participant "UserInfoService" as UserInfoService
+end box
+
+autonumber
+
+csr -> a: login and check account status by MSISDN
+
+a -> ups: checkLockStatus(requestUserId)
+note left ups
+	GET /idm/provisioning/v1/userprofile/{user_id}/lockStatus
+	Content-Type: application/json
+	Realm: Self_Care
+	Authorization: Bearer 1234567890abcdefg
+end note
+note left ups
+	"user_id":"tel:12345678"
+end note
+ups -> ups: putRealmIntoThreadLocal()
+ups -> ups: validateRequestParameterIsRequired(requestUserId)
+ups -> upm: checkLockStatus(requestUserId)
+note right upm
+	String identityId = AuthenticationUtils.removeUserIdPrefix(requestUserId);
+	String identityType = AuthenticationUtils.getIdentityType(requestUserId);
+end note
+upm -> iamProfile: identity = queryIdentityByIdentityId(identityId, identityType)
+upm -> upm: userId = identity.getUserId()
+upm -> iamProfile: userInfo = queryUserInfoByUserId(userId)
+iamProfile -> UserInfoService
+UserInfoService --> iamProfile
+upm -> schandler: List<Map<String, String>> lockedCounters = getLockedCounters(userInfo) //new method
+schandler --> upm
+upm --> ups
+
+alt success
+ups --> a: 200, OK
+note right a
+	Status: 200 OK
+	Content-Type: application/json
+	{
+		"uid":"uuid...",
+		"manualLock":true/false,
+		"lockedCounters":[
+			"LoginCount",
+			"AuthNFailureCount",
+			"SecurityAnswerFailureCount",
+			"PasswordResetCount",
+			"PasswordResetFailureCount"
+		]
+	}
+end note
+
+a --> csr: display lock information page
+
+else invalid parameter
+ups --> a: 400, Bad Request
+note right a
+	Status: 400 Bad Request
+	Content-Type: application/json
+	{
+		"error": "invalid_request",
+		"error_description": "Required parameter user_id is invalid."
+	}
+end note
+
+else user not found
+ups --> a: 404, not found
+note right a
+	Status: 404 Not Found
+	Content-Type: application/json
+	{
+		"error": "user_not_found",
+		"error_description": "The provided user_id is not found."
+	}
+end note
+a --> csr: The provided user_id is not found.
+
+else internal server error
+ups --> a: 5xx, internal server error
+note right a
+	Status: 5xx
+	Content-Type: application/json
+	{
+		"error": "internal_server_error",
+		"error_description": "server error."
+	}
+end note
+end
+@enduml
